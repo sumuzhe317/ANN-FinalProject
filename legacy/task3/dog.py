@@ -1,5 +1,5 @@
-# trainstage1.py
-import torch,argparse,os
+import torch
+import os
 import math
 import random
 import numpy as np
@@ -13,7 +13,7 @@ from torchvision.models import ResNet50_Weights,ResNeXt101_32X8D_Weights
 from utils.dataloader import BirdsDataset, StanfordDogsDataset
 from utils.utils import save_checkpoint, _init_fn, set_seed
 from utils.config import getConfig, getDatasetConfig
-import legacy.task8.net as net
+
 
 def preprocess_train(image):
     width, height = image.size
@@ -64,10 +64,6 @@ def preprocess_test(image):
     ])(image)
 
 def train():
-    train_stage_1()
-    train_stage_2()
-
-def train_stage_1():
     # set seed
     set_seed(config.seed)
     
@@ -75,91 +71,19 @@ def train_stage_1():
 
     best_acc = 0
     best_loss = None
-
-    num_classes = dataset_classes
-
-    model = net.SimCLRStage1()
-    lossLR=net.Loss()
-    optimizer=torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
-
-    # log config
-    writer = SummaryWriter(config.log_path)
-
-    # gpu config
-    use_gpu = torch.cuda.is_available() and config.use_gpu
-    gpu_ids = [int(r) for r in config.gpu_ids.split(',')]
-    if use_gpu:
-        if config.multi_gpu:
-            model = model.cuda()
-            model = torch.nn.DataParallel(model, device_ids=gpu_ids)
-        else:
-            model = model.cuda()
-    device = torch.device("cuda" if use_gpu else "cpu")
-    lossLR = lossLR.to(device)
-
-    for epoch in range(num_epochs):
-
-        for phase in ['train']:
-            if phase == 'train':
-                model.train()
-            else:
-                model.eval()
-
-            running_loss = 0.0
-            running_corrects = 0
-
-            for imgL,imgR,labels in dataloaders[phase]:
-                imgL,imgR,labels=imgL.to(device),imgR.to(device),labels.to(device)
-
-                optimizer.zero_grad()
-
-                with torch.set_grad_enabled(phase == 'train'):
-                    _, pre_L=model(imgL)
-                    _, pre_R=model(imgR)
-                    loss=lossLR(pre_L,pre_R,config.batch_size)
-
-                    if phase == 'train':
-                        loss.backward()
-                        optimizer.step()
-
-                running_loss += loss.item() * imgL.size(0)
-
-            if phase == 'train':
-                scheduler.step()
-
-            epoch_loss = running_loss / dataset_sizes[phase]
-
-            if best_loss is None:
-                best_loss = epoch_loss + 1
-            best_loss = epoch_loss if epoch_loss < best_loss else best_loss
-
-            print(f'train_stage one {phase} Loss: {epoch_loss:.4f}')
-
-            # Record loss and accuracy into TensorBoard
-            writer.add_scalar(f'{phase}/train_stage_one/loss', epoch_loss, epoch)
-
-        print()
-
-        if epoch % 5==0:
-            torch.save(model.state_dict(), os.path.join(config.checkpoint_path, 'model_stage1_epoch' + str(epoch) + '.pth.tar'))
-    writer.close()
-
-def train_stage_2():
-    # set seed
-    set_seed(config.seed)
-    
-    num_epochs = config.epochs
-
-    best_acc = 0
-    best_loss = None
+    warm_up_iter = 0
+    T_max = 50
+    lr_max = 0.05	# 最大值
+    lr_min = 0.001	# 最小值
 
     num_classes = dataset_classes
 
     # model config
-    model = net.SimCLRStage2(num_class=num_classes)
+    model = models.resnext101_32x8d(weights=ResNeXt101_32X8D_Weights.IMAGENET1K_V2,progress=True)
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, num_classes)
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.fc.parameters(), lr=1e-2, weight_decay=1e-6)
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.7)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
 
     # log config
@@ -174,7 +98,6 @@ def train_stage_2():
             model = torch.nn.DataParallel(model, device_ids=gpu_ids)
         else:
             model = model.cuda()
-    model.load_state_dict(torch.load(config.resume),strict=False)
     device = torch.device("cuda" if use_gpu else "cpu")
 
     # train
@@ -224,11 +147,11 @@ def train_stage_2():
                 best_loss = epoch_loss if epoch_loss < best_loss else best_loss
                 best_acc = epoch_acc if epoch_acc > best_acc else best_acc
 
-            print(f'train_stage two {phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+            print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
 
             # Record loss and accuracy into TensorBoard
-            writer.add_scalar(f'{phase}/train_stage_two/loss', epoch_loss, epoch)
-            writer.add_scalar(f'{phase}/train_stage_two/accuracy', epoch_acc, epoch)
+            writer.add_scalar(f'{phase}/loss', epoch_loss, epoch)
+            writer.add_scalar(f'{phase}/accuracy', epoch_acc, epoch)
 
         print()
 
@@ -280,9 +203,11 @@ def test():
     num_classes = dataset_classes
 
     # model config
-    model = net.SimCLRStage2(num_class=num_classes)
+    model = models.resnext101_32x8d(weights=None,progress=True)
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, num_classes)
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.fc.parameters(), lr=1e-3, weight_decay=1e-6)
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.7)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
 
     # log config
@@ -333,17 +258,11 @@ def test():
 
     writer.close()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     config = getConfig()
     if config.action == 'train':
         dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
-        print('this source code only support train_stage one and train_stage two')
-    elif config.action == 'test':
+        train()
+    else:
         dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
         test()
-    elif config.action == 'train_stage_1':
-        dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
-        train_stage_1()
-    elif config.action == 'train_stage_2':
-        dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
-        train_stage_2()

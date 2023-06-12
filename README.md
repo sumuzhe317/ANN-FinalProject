@@ -94,9 +94,35 @@ Square Crop Dataset code: ./legacy/task3/StanfordDogs_squareCrop.py
 
 Square Cropped Dataset Pictures: ./data/StanfordDogs/squareCroppedImages
 
+Train & Set checkpoint for cropped pictures: Tensorboard under directory ./runs/task3/dog/cropClassification
+
+Train & Set checkpoint for square cropped pictures: Tensorboard under directory ./runs/task3/dog/squareCropClassification
+
 Train & Set result for cropped pictures: Tensorboard under directory ./runs/task3/dog/cropClassification
 
 Train & Set result for square cropped pictures: Tensorboard under directory ./runs/task3/dog/squareCropClassification
+
+Cropped Training Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/task3/dog.py --use-gpu --multi-gpu --gpu-ids 0 --dataset dog_cropped train --epoch 16 --checkpoint-path checkpoint/task3/dog/cropClassification --log-path runs/task3/dog/cropClassification
+```
+Square Cropped Training Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/task3/dog.py --use-gpu --multi-gpu --gpu-ids 0 --dataset dog_square_cropped train --epoch 16 --checkpoint-path checkpoint/task3/dog/squareCropClassification --log-path runs/task3/dog/squareCropClassification
+```
+
+Cropped Testing Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/task3/dog.py --use-gpu --multi-gpu --gpu-ids 0 --dataset dog_cropped test --epoch 16 --checkpoint-path checkpoint/task3/dog/cropClassification --log-path runs/task3/dog/cropClassification --resume checkpoint/task3/dog/cropClassification/model_best.pth.tar
+```
+Square Cropped Testing Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/task3/dog.py --use-gpu --multi-gpu --gpu-ids 0 --dataset dog_square_cropped train --epoch 16 --checkpoint-path checkpoint/task3/dog/squareCropClassification --log-path runs/task3/dog/squareCropClassification --resume checkpoint/task3/dog/squareCropClassification/model_best.pth.tar
+```
 
 **CUB-200-2011 dataset**
 
@@ -116,9 +142,35 @@ Square Crop Dataset code: ./legacy/task3/CUB-200-2011_squareCrop.py
 
 Square Cropped Dataset Pictures: ./data/CUB-200-2011/CUB_200_2011/squarecroppedimages
 
+Train & Set checkpoint for cropped pictures: Tensorboard under directory ./runs/task3/bird/cropClassification
+
+Train & Set checkpoint for square cropped pictures: Tensorboard under directory ./runs/task3/bird/squareCropClassification
+
 Train & Set result for cropped pictures: Tensorboard under directory ./runs/task3/bird/cropClassification
 
 Train & Set result for square cropped pictures: Tensorboard under directory ./runs/task3/bird/squareCropClassification
+
+Cropped Training Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/task3/bird.py --use-gpu --multi-gpu --gpu-ids 0 --dataset bird_cropped train --epoch 16 --checkpoint-path checkpoint/task3/bird/cropClassification --log-path runs/task3/bird/cropClassification
+```
+Square Cropped Training Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/task3/bird.py --use-gpu --multi-gpu --gpu-ids 0 --dataset bird_square_cropped train --epoch 16 --checkpoint-path checkpoint/task3/bird/squareCropClassification --log-path runs/task3/bird/squareCropClassification
+```
+
+Cropped Testing Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/task3/bird.py --use-gpu --multi-gpu --gpu-ids 0 --dataset bird_cropped test --epoch 16 --checkpoint-path checkpoint/task3/bird/cropClassification --log-path runs/task3/bird/cropClassification --resume checkpoint/task3/bird/cropClassification/model_best.pth.tar
+```
+Square Cropped Testing Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/task3/bird.py --use-gpu --multi-gpu --gpu-ids 0 --dataset bird_square_cropped train --epoch 16 --checkpoint-path checkpoint/task3/bird/squareCropClassification --log-path runs/task3/bird/squareCropClassification --resume checkpoint/task3/bird/squareCropClassification/model_best.pth.tar
+```
 
 ### Step 4
 > Synthetic image generation as part of data augmentation
@@ -253,21 +305,33 @@ t/task7/bird --log-path runs/task7/bird --dataset bird --epoch 50  train
 
 Main Code: ./legacy/task8/dog.py
 
-Training Command:
+Training Stage One Command:
 
 ```bash
-CUDA_VISIBLE_DEVICES=2,4 python legacy/task8/dog.py --dataset dog_unsupervised --use-gpu --multi-gpu --gpu-ids 0,1 --checkpoint-path checkpoint/task8/dog/stage1 --log-path runs/task8/dog/stage1 --batch-size 4 train_stage_1
+CUDA_VISIBLE_DEVICES=2,4 python legacy/task8/dog.py --dataset dog_unsupervised --use-gpu --multi-gpu --gpu-ids 0,1 --checkpoint-path checkpoint/task8/dog/stage1 --log-path runs/task8/dog/stage1 --batch-size 4 train_stage_1 --epoch 22
+```
+Training Stage Two Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/task8/dog.py --dataset dog --use-gpu --multi-gpu --gpu-ids 0 --checkpoint-path checkpoint/task8/dog/stage2 --log-path runs/task8/dog/stage2 --batch-size 32 train_stage_2 --epoch 16 --resume checkpoint/task8/dog/stage1/model_stage1_epoch20.pth.tar
 ```
 
 **CUB-200-2011 dataset**
 
 Main Code: ./legacy/task8/bird.py
 
-Training Command:
+Training Stage One Command:
 
 ```bash
-CUDA_VISIBLE_DEVICES=3 python legacy/task7/bird.py --use-gpu --multi-gpu --gpu-ids 0 --checkpoint-path checkpoin
-t/task7/bird --log-path runs/task7/bird --dataset bird --epoch 50  train
+ CUDA_VISIBLE_DEVICES=2,4 python legacy/task8/bird.py --dataset bird_unsupervised --use-gpu --multi-gpu --gpu-ids 0,1 --checkpoint-path checkpoint/task8/bird/stage1 --log-path runs/task8/bird/stage1 --batch-size 4 train_stage_1 --epoch
+ 22
+```
+
+Training Stage Two Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=2,4 python legacy/task8/bird.py --dataset bird --use-gpu --multi-gpu --gpu-ids 0,1 --checkpoint-
+path checkpoint/task8/bird/stage2 --log-path runs/task8/bird/stage2 --batch-size 4 train_stage_2 --epoch 16 --resume checkpoint/task8/bird/stage1/model_stage1_epoch20.pth.tar
 ```
 
 

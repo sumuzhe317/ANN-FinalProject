@@ -159,7 +159,7 @@ def train_stage_2():
     # model config
     model = net.SimCLRStage2(num_class=num_classes)
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.fc.parameters(), lr=1e-3, weight_decay=1e-6)
+    optimizer = torch.optim.Adam(model.fc.parameters(), lr=1e-2, weight_decay=1e-6)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
 
     # log config
@@ -174,6 +174,7 @@ def train_stage_2():
             model = torch.nn.DataParallel(model, device_ids=gpu_ids)
         else:
             model = model.cuda()
+    model.load_state_dict(torch.load(config.resume),strict=False)
     device = torch.device("cuda" if use_gpu else "cpu")
 
     # train
