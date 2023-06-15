@@ -79,7 +79,7 @@ def train():
     num_classes = dataset_classes
 
     # model config
-    model = models.resnext101_32x8d(weights=ResNeXt101_32X8D_Weights.IMAGENET1K_V2,progress=True)
+    model = models.resnext101_32x8d(weights=None,progress=True)
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, num_classes)
     criterion = nn.CrossEntropyLoss()
@@ -137,14 +137,15 @@ def train():
             epoch_acc = running_corrects.double() / dataset_sizes[phase]
             if best_loss is None:
                 best_loss = epoch_loss + 1
-            if epoch_acc > best_acc and phase == 'val':
+            if phase == 'val':
                 save_checkpoint({
                     'epoch': epoch,
                     'state_dict': model.state_dict(),
                     'best_prec1': epoch_acc,
                     'optimizer': optimizer.state_dict(),
-                }, is_best=True, path=config.checkpoint_path)
-                best_loss = epoch_loss
+                }, is_best=epoch_acc > best_acc, path=config.checkpoint_path)
+                best_loss = epoch_loss if epoch_loss < best_loss else best_loss
+                best_acc = epoch_acc if epoch_acc > best_acc else best_acc
 
             print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
 
@@ -205,7 +206,6 @@ def test():
     model = models.resnext101_32x8d(weights=None,progress=True)
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, num_classes)
-    model.load_state_dict(torch.load(config.resume)['state_dict'])
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.7)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
@@ -222,7 +222,8 @@ def test():
             model = torch.nn.DataParallel(model, device_ids=gpu_ids)
         else:
             model = model.cuda()
-    device = torch.device(gpu_ids if use_gpu else "cpu")
+    model.load_state_dict(torch.load(config.resume)['state_dict'])
+    device = torch.device("cuda" if use_gpu else "cpu")
 
     # test
     for phase in ['test']:
@@ -260,8 +261,8 @@ def test():
 if __name__ == "__main__":
     config = getConfig()
     if config.action == 'train':
-        dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess=preprocess_train)
+        dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
         train()
     else:
-        dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess=preprocess_test)
+        dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
         test()

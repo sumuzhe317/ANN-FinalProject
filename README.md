@@ -25,6 +25,50 @@ Remember to set this env!
 cd /path/to/this/project
 export PYTHONPATH=$PWD 
 ```
+### Baseline
+
+A unified code for all dataset: utils/dataloader.py
+
+**Stanford Dogs dataset**
+
+Main Code: ./legacy/baseline/dog.py
+
+Checkpoint: ./checkpoint/baseline/dog
+
+Result: Tensorboard under directory ./runs/baseline/dog/
+
+Training Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=5 python legacy/baseline/dog.py --use-gpu --multi-gpu --gpu-ids 0 --dataset dog train --epoch 25 --checkpoint-path checkpoint/baseline/dog --log-path runs/baseline/dog
+```
+
+Testing Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=5 python legacy/baseline/dog.py --use-gpu --multi-gpu --gpu-ids 0 --dataset dog test --resume checkpoint/baseline/dog/model_best.pth.tar --log-path runs/baseline/dog
+```
+
+**CUB-200-2011 dataset**
+
+Main Code: ./legacy/baseline/bird.py
+
+Checkpoint: ./checkpoint/baseline/bird
+
+Result: Tensorboard under directory ./runs/baseline/bird/
+
+Training Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/baseline/bird.py --use-gpu --multi-gpu --gpu-ids 0 --dataset bird train --epoch 25 --checkpoint-path checkpoint/baseline/bird --log-path runs/baseline/bird
+```
+
+Testing Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 python legacy/baseline/bird.py --use-gpu --multi-gpu --gpu-ids 0 --dataset bird test --resume checkpoint/baseline/bird/model_best.pth.tar --log-path runs/baseline/bird
+```
+
 
 ### Step 1&2
 > Various training tricks to improve model performance
@@ -287,6 +331,12 @@ Training Command:
 CUDA_VISIBLE_DEVICES=2 python legacy/task7/dog.py --use-gpu --multi-gpu --gpu-ids 0 --checkpoint-path checkpoint/task7/dog --log-path runs/task7/dog --dataset dog --epoch 50  train
 ```
 
+Testing Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=2 python legacy/task7/dog.py --use-gpu --multi-gpu --gpu-ids 0 --checkpoint-path checkpoint/task7/dog --log-path runs/task7/dog --dataset dog --epoch 50 --resume checkpoint/task7/dog/model_best.pth.tar test
+```
+
 **CUB-200-2011 dataset**
 
 Main Code: ./legacy/task7/bird.py
@@ -294,8 +344,13 @@ Main Code: ./legacy/task7/bird.py
 Training Command:
 
 ```bash
-CUDA_VISIBLE_DEVICES=3 python legacy/task7/bird.py --use-gpu --multi-gpu --gpu-ids 0 --checkpoint-path checkpoin
-t/task7/bird --log-path runs/task7/bird --dataset bird --epoch 50  train
+CUDA_VISIBLE_DEVICES=3 python legacy/task7/bird.py --use-gpu --multi-gpu --gpu-ids 0 --checkpoint-path checkpoint/task7/bird --log-path runs/task7/bird --dataset bird --epoch 50  train
+```
+
+Testing Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=3 python legacy/task7/bird.py --use-gpu --multi-gpu --gpu-ids 0 --checkpoint-path checkpoint/task7/bird --log-path runs/task7/bird --dataset bird --epoch 50  --resume checkpoint/task7/bird/model_best.pth.tar test
 ```
 
 ### Step 8
