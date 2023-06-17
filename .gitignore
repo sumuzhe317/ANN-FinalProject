@@ -11,6 +11,8 @@ runs/task3/dog/objectdetection/events.out.tfevents.1684805452.nscc-gz.715522.0
 runs/task3/dog/objectdetection/20230523_093046.json
 runs/task3/bird/objectdetection/events.out.tfevents.1685294253.nscc-gz.3084711.0
 temp/
+report-ppt/
+report-latex/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
