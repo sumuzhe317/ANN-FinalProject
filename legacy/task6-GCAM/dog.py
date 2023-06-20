@@ -19,6 +19,9 @@ from utils.dataloader import BirdsDataset, StanfordDogsDataset
 from utils.utils import save_checkpoint, _init_fn, set_seed
 from utils.config import getConfig, getDatasetConfig
 from legacy.task6.heatmap_model import heatmap_model
+import torch.nn.functional as F
+from torchvision.transforms.functional import normalize, resize, to_tensor, to_pil_image
+from matplotlib import cm
 
 
 def preprocess_train(image):
@@ -286,6 +289,17 @@ def test():
 
     writer.close()
 
+hook_a = None
+def _hook_a(module,inp,out):
+    global hook_a
+    hook_a = out
+
+hook_g = None
+def _hook_g(module,inp,out):
+    global hook_g
+    hook_g = out[0]
+
+
 def gen_heatmap():
     # set seed
     set_seed(config.seed)
@@ -295,12 +309,29 @@ def gen_heatmap():
     if not os.path.exists(savepath):
         os.mkdir(savepath)
 
-    model=heatmap_model(config=config,num_classes=num_classes,savepath=savepath).cuda()
-    model.eval()
+    # model config
+    model = models.resnext101_32x8d(weights=None,progress=True)
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, num_classes)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.7)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
+
+    # log config
+    writer = SummaryWriter(config.log_path)
+
+    # gpu config
     use_gpu = torch.cuda.is_available() and config.use_gpu
+    gpu_ids = [int(r) for r in config.gpu_ids.split(',')]
+    if use_gpu:
+        if config.multi_gpu:
+            model = model.cuda()
+            model = torch.nn.DataParallel(model, device_ids=gpu_ids)
+        else:
+            model = model.cuda()
+    model.load_state_dict(torch.load(config.resume)['state_dict'])
     device = torch.device("cuda" if use_gpu else "cpu")
 
-    # test
 
     # 加载输入图像
     image_path = config.input_img
@@ -310,19 +341,47 @@ def gen_heatmap():
     input_image = preprocess_heatmap(image).unsqueeze(0).to(device)
 
     with torch.no_grad():
-        start=time.time()
-        out=model(input_image)
-        print("total time:{}".format(time.time()-start))
-        result=out.cpu().numpy()
-        ind=np.argsort(result,axis=1)
-        for i in range(5):
-            print("predict:top {} = cls {} : score {}".format(i+1,ind[0,num_classes-i-1],result[0,num_classes-i-1]))
-        print("done")
+        son_modules = dict(model.named_modules())
+        for name in son_modules.keys():
+            if name != 'module.layer4':
+                continue
+            # print(submodule_dict)
+            target_layer = son_modules[name]
+            print(target_layer)
+
+            hook1 = target_layer.register_forward_hook(_hook_a)
+            hook2 = target_layer.register_backward_hook(_hook_g)
+
+            scores = model(input_image)
+            class_idx = 0 # class 232 corresponding to the border collie
+            loss = scores[:,class_idx].sum()
+            loss.requires_grad_(True)   #加入此句就行了
+            loss.backward()
+
+            weights = hook_g.squeeze(0).mean(dim=(1,2))
+            cam = (weights.view(*weights.shape, 1, 1) * hook_a.squeeze(0)).sum(0)
+            cam = F.relu(cam)
+            cam.sub_(cam.flatten(start_dim=-2).min(-1).values.unsqueeze(-1).unsqueeze(-1))
+            cam.div_(cam.flatten(start_dim=-2).max(-1).values.unsqueeze(-1).unsqueeze(-1))
+            cam = cam.data.cpu().numpy()
+
+            heatmap = to_pil_image(cam, mode='F')
+            overlay = heatmap.resize(input_image.size, resample=Image.BICUBIC)
+            cmap = cm.get_cmap('jet')
+            overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, :3]).astype(np.uint8)
+            alpha = .7
+            result = (alpha * np.asarray(input_image) + (1 - alpha) * overlay).astype(np.uint8)
+            plt.imshow(result)
+            plt.savefig("{}/{}".format(savepath,name))
+            plt.clf()
+            plt.close()
+            hook1.remove()
+            hook2.remove()
 
 if __name__ == "__main__":
     config = getConfig()
     if config.action == 'train':
-        dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=configndataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
+        dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
         train()
     elif config.action == 'test':
         dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)

@@ -322,7 +322,7 @@ def gen_heatmap():
 if __name__ == "__main__":
     config = getConfig()
     if config.action == 'train':
-        dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=configndataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
+        dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
         train()
     elif config.action == 'test':
         dataset, dataloaders, dataset_sizes, dataset_classes = getDatasetConfig(config=config,dataset_name=config.dataset,project_root=os.getcwd(),preprocess_train=preprocess_train, preprocess_test=preprocess_test)
